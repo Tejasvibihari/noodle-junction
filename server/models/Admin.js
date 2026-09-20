@@ -42,6 +42,12 @@ const adminSchema = new mongoose.Schema(
             trim: true,
         },
 
+        password: {
+            type: String,
+            required: true,
+            select: false,
+        },
+
         address: {
             street: {
                 type: String,
@@ -63,6 +69,11 @@ const adminSchema = new mongoose.Schema(
                 type: String,
             },
         },
+        role: {
+            type: String,
+            enum: ["admin"],
+            default: "admin",
+        }
     },
     {
         timestamps: true,

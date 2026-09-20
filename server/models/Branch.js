@@ -63,6 +63,11 @@ const branchSchema = new mongoose.Schema(
                 type: String,
             },
         },
+        role: {
+            type: String,
+            enum: ["branch"],
+            default: "branch",
+        },
 
         status: {
             type: String,
