@@ -3,7 +3,7 @@
 > **This is the living document.** Update it after every module/task. It answers: *what are we building, what is done, what is left.*
 > Status: ⬜ Not started · 🟨 In progress · ✅ Done · ⏸ Blocked · 🔻 Deferred
 
-**Last updated:** 2026-09-21 · **Current phase:** Phase 1 — Dine-in MVP · **Current module:** M0 (not started)
+**Last updated:** 2026-09-21 · **Current phase:** Phase 1 — Dine-in MVP · **Current module:** M0 (in progress — step 1 of 8 done)
 
 ---
 
@@ -24,7 +24,7 @@ A multi-branch restaurant platform for **Noodle Junction**: QR-based dine-in ord
 
 | # | Module | Status | Backend | Dashboard UI | Customer UI | App | Tests | Docs synced | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| M0 | Project foundation | ⬜ | ⬜ | ⬜ | ⬜ | — | ⬜ | ⬜ | |
+| M0 | Project foundation | 🟨 | 🟨 | ⬜ | ⬜ | — | ⬜ | ⬜ | Step 1/8 done (monorepo tooling) |
 | M1 | Auth & RBAC | ⬜ | ⬜ | ⬜ | — | — | ⬜ | ⬜ | |
 | M2 | Restaurant, Branches, Staff | ⬜ | ⬜ | ⬜ | — | — | ⬜ | ⬜ | |
 | M3 | Master Menu | ⬜ | ⬜ | ⬜ | — | — | ⬜ | ⬜ | |
@@ -52,7 +52,7 @@ A multi-branch restaurant platform for **Noodle Junction**: QR-based dine-in ord
 Tick items as they are **merged and working on staging**.
 
 ### M0 — Foundation
-- [ ] Monorepo (pnpm + turbo), TS config, ESLint/Prettier, Husky
+- [x] Monorepo (pnpm + turbo), TS config, ESLint/Prettier, Husky (+ commitlint, lint-staged)
 - [ ] `apps/api` skeleton: env validation, Mongo, Redis, logger, error handler, envelope
 - [ ] `packages/shared`: enums, money utils, error codes, zod base
 - [ ] `packages/design-tokens` + Tailwind preset
@@ -239,263 +239,14 @@ Tick items as they are **merged and working on staging**.
 | 2026-09-21 | Money in integer paise | |
 | 2026-09-21 | Razorpay webhook is source of truth | |
 | 2026-09-21 | Admin is read-only on orders (reports only) | **Confirm** |
+| 2026-09-21 | Repo layout: `client/` (Next.js web) + `server/` (Express API) + `packages/*` (shared) instead of `apps/*`; docs in `documentation/` | Supersedes TRD §3 folder names |
 | | | |
 
 ## 7. Open questions / blockers
 
 | # | Question | Owner | Status |
 |---|---|---|---|
-| Q1 | Delivery zone: radius vs polygon for M# Noodle Junction — QA & Testing Plan
-
-Related: [Modules](06-MODULES.md) · [Business rules](08-BUSINESS-RULES-AND-FLOWS.md) · [Security](09-SECURITY-AND-RBAC.md)
-
-## 1. Strategy
-
-| Level | Tools | What |
-|---|---|---|
-| Unit | Vitest/Jest | Pricing engine, coupon rules, state machines, geofence math, invoice numbering |
-| Integration (API) | Supertest + MongoDB Memory Server (replica set) + Redis mock/container | Endpoints, transactions, RBAC, isolation |
-| Contract | zod/OpenAPI | Request/response shapes shared with web/app |
-| Real-time | socket.io-client in tests | Room membership, events, catch-up |
-| E2E web | Playwright | QR flow, POS flow, dashboard live updates (two browser contexts) |
-| Mobile | Detox / manual checklist | Login, push in background/killed |
-| Payments | Razorpay **test mode** + webhook replay | Success, failure, duplicate webhook |
-| Load | k6 / Artillery | Order create, socket fan-out |
-| Security | OWASP ZAP, manual | Auth, injection, session, webhook |
-| UAT | Real branch staff | Scripted scenarios |
-
-Coverage target: ≥ 80 % on services; **100 % of business-rule branches** listed below.
-
-## 2. Critical test cases (must automate)
-
-### 2.1 Isolation
-- [ ] Branch A user cannot GET/PATCH/DELETE any Branch B order/menu/table/staff/payment (404).
-- [ ] Branch A socket never receives Branch B events.
-- [ ] Guest of session S1 cannot read order of S2.
-- [ ] Customer cannot read another customer's orders.
-- [ ] Admin cannot call branch-operation endpoints (403) but can call reports.
-- [ ] `branchId` in request body/query is ignored for branch users.
-
-### 2.2 Auth
-- [ ] Login success/failure/lockout; refresh rotation; reuse of old refresh token revokes family.
-- [ ] Expired access token → refresh flow works silently in dashboard.
-- [ ] Deactivated user immediately loses access (force logout).
-- [ ] OTP expiry, max attempts, resend cooldown.
-
-### 2.3 QR & table session
-- [ ] Valid token resolves table; rotated token returns 404.
-- [ ] Two devices join the same session; one open session per table (unique index race test).
-- [ ] After close, old cookie → `SESSION_ENDED`; new scan creates new session.
-- [ ] Branch closed/paused blocks session start.
-
-### 2.4 Orders
-- [ ] First order creates order + round 1 + KOT; add-on creates round 2 on the same order.
-- [ ] Pricing: variants, add-ons, tax inclusive/exclusive, discount, round-off — table-driven tests with paise integers.
-- [ ] Remove PENDING item ✔; remove PREPARING/READY/SERVED as guest → `ITEM_LOCKED`.
-- [ ] Manager cancel of PREPARING requires reason, writes audit log.
-- [ ] Concurrent add-ons from two phones both persist (version retry).
-- [ ] Idempotency key returns the same order on retry.
-- [ ] Unavailable item rejected; price snapshot unchanged after menu edit.
-- [ ] Transfer table, merge orders update tables/session correctly.
-- [ ] Closed order is immutable.
-
-### 2.5 Payments
-- [ ] Amount computed server-side; tampered client amount ignored.
-- [ ] Valid/invalid signature; webhook signature valid/invalid; duplicate webhook is a no-op.
-- [ ] Payment then add-on → correct balance; second payment closes.
-- [ ] Failed payment leaves order unpaid; retry works.
-- [ ] Refund (full/partial) updates payment + order.
-- [ ] Webhook before verify; verify before webhook.
-
-### 2.6 Invoice
-- [ ] Sequential, gap-free numbering under concurrent generation (parallel test).
-- [ ] FY rollover (31 Mar → 1 Apr).
-- [ ] Tax split CGST/SGST sums equal tax total; totals equal payments.
-- [ ] Invoice immutable; credit note flow.
-
-### 2.7 Coupons
-- [ ] Each rule: min order, cap, validity, days/hours, usage limit total/per user, order type, branch scope, first-order.
-- [ ] Re-evaluated after item removal; removed if invalid.
-- [ ] Concurrent redemption at usage limit − 1 (only one succeeds).
-
-### 2.8 Delivery / geofencing
-- [ ] Point inside/outside radius and polygon; boundary points.
-- [ ] Nearest branch chosen; closed/paused/disabled skipped.
-- [ ] No eligible branch → `NOT_DELIVERABLE`.
-- [ ] Reject/timeout → single reassign; order disappears from first branch.
-- [ ] Fee slabs and min-order enforcement.
-
-### 2.9 Real-time & push
-- [ ] Order appears on 2 dashboards < 1 s after creation.
-- [ ] Reconnect after offline → missed orders fetched.
-- [ ] Sound plays once per event (no duplicates).
-- [ ] App killed → push received, tap opens the order.
-- [ ] Escalation triggers if unacknowledged; stops when acknowledged.
-
-### 2.10 Reservations
-- [ ] Availability respects capacity/overlaps; double-booking prevented (concurrent).
-- [ ] Seat → creates session and marks table occupied.
-
-## 3. Manual UAT scripts (per branch before go-live)
-1. Scan QR at T-1 → order 2 items → kitchen sees ticket with sound.
-2. Kitchen marks preparing → guest sees status; guest tries to remove → blocked.
-3. Guest adds roti → new KOT round; waiter adds another roti from Live Tables.
-4. Guest requests bill; cashier bills; pays via UPI (Razorpay) and cash split.
-5. Close table → T-1 vacant; old phone shows "session ended".
-6. Cashier creates walk-in POS order; prints invoice on thermal printer.
-7. Search order by order ID and table number; modify before payment.
-8. Toggle item out of stock → disappears/greys on guest phone live.
-9. Place delivery order from a test address → correct branch gets it; other branch does not.
-10. Turn off Wi-Fi on dashboard for 1 min → banner → reconnect → no missed orders.
-11. Android app closed → new order → notification + sound.
-12. Coupon apply/remove; invalid coupon message.
-
-## 4. Non-functional tests
-| Test | Target |
-|---|---|
-| Menu page LCP on 4G | < 2.5 s |
-| Order create p95 | < 400 ms |
-| Order → dashboard latency p95 | < 1 s |
-| Sockets | 500 concurrent guests + 100 staff per instance |
-| Payment webhook burst | 50/s without loss |
-| Browser support | Chrome, Safari iOS 15+, Samsung Internet, Firefox (latest 2) |
-| Devices | Android 9+ (app), 360×640 minimum web |
-
-## 5. Bug triage
-| Severity | Definition | Fix SLA |
-|---|---|---|
-| S1 | Orders/payments lost, data leak, site down | Immediately |
-| S2 | Major flow broken with workaround | 1 day |
-| S3 | Minor functional/UI | Next release |
-| S4 | Cosmetic | Backlog |
-
-## 6. Test data
-Seeds: 2 branches, 3 tables each with known `qrToken`s, users per role, master menu, coupons (valid/expired/limit-1), Razorpay test keys, test delivery coordinates inside/outside zones.# Noodle Junction — QA & Testing Plan
-
-Related: [Modules](06-MODULES.md) · [Business rules](08-BUSINESS-RULES-AND-FLOWS.md) · [Security](09-SECURITY-AND-RBAC.md)
-
-## 1. Strategy
-
-| Level | Tools | What |
-|---|---|---|
-| Unit | Vitest/Jest | Pricing engine, coupon rules, state machines, geofence math, invoice numbering |
-| Integration (API) | Supertest + MongoDB Memory Server (replica set) + Redis mock/container | Endpoints, transactions, RBAC, isolation |
-| Contract | zod/OpenAPI | Request/response shapes shared with web/app |
-| Real-time | socket.io-client in tests | Room membership, events, catch-up |
-| E2E web | Playwright | QR flow, POS flow, dashboard live updates (two browser contexts) |
-| Mobile | Detox / manual checklist | Login, push in background/killed |
-| Payments | Razorpay **test mode** + webhook replay | Success, failure, duplicate webhook |
-| Load | k6 / Artillery | Order create, socket fan-out |
-| Security | OWASP ZAP, manual | Auth, injection, session, webhook |
-| UAT | Real branch staff | Scripted scenarios |
-
-Coverage target: ≥ 80 % on services; **100 % of business-rule branches** listed below.
-
-## 2. Critical test cases (must automate)
-
-### 2.1 Isolation
-- [ ] Branch A user cannot GET/PATCH/DELETE any Branch B order/menu/table/staff/payment (404).
-- [ ] Branch A socket never receives Branch B events.
-- [ ] Guest of session S1 cannot read order of S2.
-- [ ] Customer cannot read another customer's orders.
-- [ ] Admin cannot call branch-operation endpoints (403) but can call reports.
-- [ ] `branchId` in request body/query is ignored for branch users.
-
-### 2.2 Auth
-- [ ] Login success/failure/lockout; refresh rotation; reuse of old refresh token revokes family.
-- [ ] Expired access token → refresh flow works silently in dashboard.
-- [ ] Deactivated user immediately loses access (force logout).
-- [ ] OTP expiry, max attempts, resend cooldown.
-
-### 2.3 QR & table session
-- [ ] Valid token resolves table; rotated token returns 404.
-- [ ] Two devices join the same session; one open session per table (unique index race test).
-- [ ] After close, old cookie → `SESSION_ENDED`; new scan creates new session.
-- [ ] Branch closed/paused blocks session start.
-
-### 2.4 Orders
-- [ ] First order creates order + round 1 + KOT; add-on creates round 2 on the same order.
-- [ ] Pricing: variants, add-ons, tax inclusive/exclusive, discount, round-off — table-driven tests with paise integers.
-- [ ] Remove PENDING item ✔; remove PREPARING/READY/SERVED as guest → `ITEM_LOCKED`.
-- [ ] Manager cancel of PREPARING requires reason, writes audit log.
-- [ ] Concurrent add-ons from two phones both persist (version retry).
-- [ ] Idempotency key returns the same order on retry.
-- [ ] Unavailable item rejected; price snapshot unchanged after menu edit.
-- [ ] Transfer table, merge orders update tables/session correctly.
-- [ ] Closed order is immutable.
-
-### 2.5 Payments
-- [ ] Amount computed server-side; tampered client amount ignored.
-- [ ] Valid/invalid signature; webhook signature valid/invalid; duplicate webhook is a no-op.
-- [ ] Payment then add-on → correct balance; second payment closes.
-- [ ] Failed payment leaves order unpaid; retry works.
-- [ ] Refund (full/partial) updates payment + order.
-- [ ] Webhook before verify; verify before webhook.
-
-### 2.6 Invoice
-- [ ] Sequential, gap-free numbering under concurrent generation (parallel test).
-- [ ] FY rollover (31 Mar → 1 Apr).
-- [ ] Tax split CGST/SGST sums equal tax total; totals equal payments.
-- [ ] Invoice immutable; credit note flow.
-
-### 2.7 Coupons
-- [ ] Each rule: min order, cap, validity, days/hours, usage limit total/per user, order type, branch scope, first-order.
-- [ ] Re-evaluated after item removal; removed if invalid.
-- [ ] Concurrent redemption at usage limit − 1 (only one succeeds).
-
-### 2.8 Delivery / geofencing
-- [ ] Point inside/outside radius and polygon; boundary points.
-- [ ] Nearest branch chosen; closed/paused/disabled skipped.
-- [ ] No eligible branch → `NOT_DELIVERABLE`.
-- [ ] Reject/timeout → single reassign; order disappears from first branch.
-- [ ] Fee slabs and min-order enforcement.
-
-### 2.9 Real-time & push
-- [ ] Order appears on 2 dashboards < 1 s after creation.
-- [ ] Reconnect after offline → missed orders fetched.
-- [ ] Sound plays once per event (no duplicates).
-- [ ] App killed → push received, tap opens the order.
-- [ ] Escalation triggers if unacknowledged; stops when acknowledged.
-
-### 2.10 Reservations
-- [ ] Availability respects capacity/overlaps; double-booking prevented (concurrent).
-- [ ] Seat → creates session and marks table occupied.
-
-## 3. Manual UAT scripts (per branch before go-live)
-1. Scan QR at T-1 → order 2 items → kitchen sees ticket with sound.
-2. Kitchen marks preparing → guest sees status; guest tries to remove → blocked.
-3. Guest adds roti → new KOT round; waiter adds another roti from Live Tables.
-4. Guest requests bill; cashier bills; pays via UPI (Razorpay) and cash split.
-5. Close table → T-1 vacant; old phone shows "session ended".
-6. Cashier creates walk-in POS order; prints invoice on thermal printer.
-7. Search order by order ID and table number; modify before payment.
-8. Toggle item out of stock → disappears/greys on guest phone live.
-9. Place delivery order from a test address → correct branch gets it; other branch does not.
-10. Turn off Wi-Fi on dashboard for 1 min → banner → reconnect → no missed orders.
-11. Android app closed → new order → notification + sound.
-12. Coupon apply/remove; invalid coupon message.
-
-## 4. Non-functional tests
-| Test | Target |
-|---|---|
-| Menu page LCP on 4G | < 2.5 s |
-| Order create p95 | < 400 ms |
-| Order → dashboard latency p95 | < 1 s |
-| Sockets | 500 concurrent guests + 100 staff per instance |
-| Payment webhook burst | 50/s without loss |
-| Browser support | Chrome, Safari iOS 15+, Samsung Internet, Firefox (latest 2) |
-| Devices | Android 9+ (app), 360×640 minimum web |
-
-## 5. Bug triage
-| Severity | Definition | Fix SLA |
-|---|---|---|
-| S1 | Orders/payments lost, data leak, site down | Immediately |
-| S2 | Major flow broken with workaround | 1 day |
-| S3 | Minor functional/UI | Next release |
-| S4 | Cosmetic | Backlog |
-
-## 6. Test data
-Seeds: 2 branches, 3 tables each with known `qrToken`s, users per role, master menu, coupons (valid/expired/limit-1), Razorpay test keys, test delivery coordinates inside/outside zones.
+| Q1 | Delivery zone: radius vs polygon for MVP | | Open |
 | Q2 | Maps provider (Google / Mappls / Mapbox) | | Open |
 | Q3 | SMS/OTP provider + DLT registration | | Open |
 | Q4 | GST rates / service charge rules (CA) | | Open |
@@ -508,6 +259,7 @@ Seeds: 2 branches, 3 tables each with known `qrToken`s, users per role, master m
 | Date | Module | Change | By |
 |---|---|---|---|
 | 2026-09-21 | Docs | v1.0 documentation set created | |
+| 2026-09-21 | M0 | Step 1: monorepo root tooling (pnpm workspace over `client`, `server`, `packages/*`, turbo, tsconfig.base, ESLint flat config in `packages/eslint-config`, Prettier, Husky + commitlint + lint-staged). Verified locally: install, eslint, prettier, commitlint OK | Claude |
 | | | | |
 
 ## 9. How to update this file
