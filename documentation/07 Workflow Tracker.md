@@ -3,7 +3,7 @@
 > **This is the living document.** Update it after every module/task. It answers: *what are we building, what is done, what is left.*
 > Status: ⬜ Not started · 🟨 In progress · ✅ Done · ⏸ Blocked · 🔻 Deferred
 
-**Last updated:** 2026-09-21 · **Current phase:** Phase 1 — Dine-in MVP · **Current module:** M0 (in progress — step 1 of 8 done)
+**Last updated:** 2026-09-21 · **Current phase:** Phase 1 — Dine-in MVP · **Current module:** M0 (in progress — 3 of 8 tasks done)
 
 ---
 
@@ -24,7 +24,7 @@ A multi-branch restaurant platform for **Noodle Junction**: QR-based dine-in ord
 
 | # | Module | Status | Backend | Dashboard UI | Customer UI | App | Tests | Docs synced | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| M0 | Project foundation | 🟨 | 🟨 | ⬜ | ⬜ | — | ⬜ | ⬜ | Step 1/8 done (monorepo tooling) |
+| M0 | Project foundation | 🟨 | 🟨 | ⬜ | ⬜ | — | 🟨 | ⬜ | 3/8 done: monorepo tooling, `server/` skeleton, `packages/shared` |
 | M1 | Auth & RBAC | ⬜ | ⬜ | ⬜ | — | — | ⬜ | ⬜ | |
 | M2 | Restaurant, Branches, Staff | ⬜ | ⬜ | ⬜ | — | — | ⬜ | ⬜ | |
 | M3 | Master Menu | ⬜ | ⬜ | ⬜ | — | — | ⬜ | ⬜ | |
@@ -53,8 +53,8 @@ Tick items as they are **merged and working on staging**.
 
 ### M0 — Foundation
 - [x] Monorepo (pnpm + turbo), TS config, ESLint/Prettier, Husky (+ commitlint, lint-staged)
-- [ ] `apps/api` skeleton: env validation, Mongo, Redis, logger, error handler, envelope
-- [ ] `packages/shared`: enums, money utils, error codes, zod base
+- [x] `server/` skeleton: env validation, Mongo, Redis, logger, error handler, envelope (Express 5, zod 4, mongoose 9, ioredis, pino; 19 tests)
+- [x] `packages/shared`: enums, money utils, error codes, zod base (39 tests; server now imports error codes/envelope types from it)
 - [ ] `packages/design-tokens` + Tailwind preset
 - [ ] `apps/dashboard` + `apps/customer-web` scaffolds
 - [ ] Docker Compose (Mongo replica set, Redis)
@@ -239,6 +239,8 @@ Tick items as they are **merged and working on staging**.
 | 2026-09-21 | Money in integer paise | |
 | 2026-09-21 | Razorpay webhook is source of truth | |
 | 2026-09-21 | Admin is read-only on orders (reports only) | **Confirm** |
+| 2026-09-21 | `@nj/shared` is a source-only (just-in-time) package, no build step | Consumers transpile it (tsup `noExternal`, Next `transpilePackages`) |
+| 2026-09-21 | Phone numbers normalised to E.164 `+91XXXXXXXXXX` by `phoneSchema` | **Confirm** — affects OTP/customer lookup and search |
 | 2026-09-21 | Repo layout: `client/` (Next.js web) + `server/` (Express API) + `packages/*` (shared) instead of `apps/*`; docs in `documentation/` | Supersedes TRD §3 folder names |
 | | | |
 
@@ -260,6 +262,8 @@ Tick items as they are **merged and working on staging**.
 |---|---|---|---|
 | 2026-09-21 | Docs | v1.0 documentation set created | |
 | 2026-09-21 | M0 | Step 1: monorepo root tooling (pnpm workspace over `client`, `server`, `packages/*`, turbo, tsconfig.base, ESLint flat config in `packages/eslint-config`, Prettier, Husky + commitlint + lint-staged). Verified locally: install, eslint, prettier, commitlint OK | Claude |
+| 2026-09-21 | M0 | Task 2: `server/` skeleton in `server/src` — zod env validation (fail-fast), Mongo + Redis connectors, pino logger with redaction, request-id, helmet/CORS allowlist/cookie-parser/JSON limits, rate limit, `AppError` + global error handler (Zod, Mongoose, body-parser, duplicate key), success/error envelope, `validate` middleware, graceful shutdown. Verified locally: typecheck, ESLint, Prettier, 19 vitest tests, tsup build. **Not yet run against live Mongo/Redis** (Docker Compose task pending). `/health` route intentionally left for its own task | Claude |
+| 2026-09-21 | M0 | Task 3: `packages/shared` (`@nj/shared`) — enums + zod schemas from 03-DATABASE, `ERROR_STATUS` error codes (moved out of `server`), envelope types, paise money helpers (`percentOfPaise`, `roundOffToRupee`, `formatINR` with Indian grouping), zod base schemas (ObjectId, phone → E.164, pincode, qty, lat/lng, pagination query). Ships TS source (no build step): server bundles it via tsup `noExternal`; client needs `transpilePackages: ['@nj/shared']`. Verified: typecheck, ESLint, Prettier, 58 tests total (shared 39, server 19), server bundle builds | Claude |
 | | | | |
 
 ## 9. How to update this file
