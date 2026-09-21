@@ -11,11 +11,18 @@ import cors from "cors";
 import adminAuthRoutes from './routes/admin/authRoute.js'
 
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 const app = express();
 app.use(bodyParser.json());
-app.use(cors());
+app.use(cors(
+    {
+        origin: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000",
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE"],
+        allowedHeaders: ["Content-Type", "Authorization"]
+    }
+));
 
 //Database Connection
 await connectDB();

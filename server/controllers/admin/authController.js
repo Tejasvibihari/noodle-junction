@@ -4,6 +4,7 @@ import { generateAdminId } from "../../utils/generateAdminId.js";
 import { generateToken } from "../../utils/generateToken.js";
 
 export const adminSignup = async (req, res) => {
+    console.log("Admin signup request body:", req.body);
     try {
         const {
             username,
